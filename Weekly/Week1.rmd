@@ -1,0 +1,81 @@
+---
+title: "Data 607 Assignment 1"
+author: "Scott Reed"
+date: "8/28/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r global_options, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      echo=FALSE, warning=FALSE, message=FALSE)
+```
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(plyr)
+library(ggplot2)
+library(klaR)
+library(stringr)
+library(rlang)
+library(knitr)
+```
+
+## Gather the names file
+
+First we get names file and concat it into a single string. Then we use an over complicated regex to extract the attributes, we then append the missing class attribute, and then use a double dose of regex (because of uncertainty in how capture groups work with str_extract) to extract the headers
+```{r getting headers}
+names= readLines(url("https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.names"))
+named = paste(names,collapse="\n")
+attributes = str_extract_all( named, "\\ {4,5}[0-9]{1,2}\\..*:.*\n(\\s{15,}[a-z].*\n){0,6}\n{0,1}")[[1]]
+attributes = prepend(attributes, "     0. class:                       poisonous=p,edible=e")
+headers = str_extract(str_extract(attributes,"[0-9]{1,2}\\.\\s([a-z\\-\\?]*):"),"[a-z\\-\\?]+")
+kable(head(headers[1:6]))
+
+```
+
+### The actual data
+
+Once we have the headers extracted we can get the data and give it names. We also subset it to show we can. 
+
+```{r now with data}
+
+ mushDat <- read.csv(url("https://archive.ics.uci.edu/ml/machine-learning-databases/mushroom/agaricus-lepiota.data"), col.names=headers)
+subMush = mushDat[,c(1,2,3,6,22,23)]
+kable(head(subMush),  )
+```
+
+###  Changing the contents to be human readable
+The data is coming along but is unreadable without the key. So we use a much simpler regex to extract the translation keys. These aren't in a very useful format so we bind them up into a list of mapping tables. We then use mapvalues from plpyr to do the remapping using the table lists for each column. Finally we have human readable data.
+
+```{r}
+mapping = sapply(str_extract_all(attributes,"[a-z]+=[a-z]+"),strsplit,"=")
+kable(head(mapping[1:2][1:2]))
+mapTables=list()
+for(i in 1:length(mapping))
+  mapTables[[i]] = do.call(rbind,mapping[[i]])
+kable(head(mapTables[[1]]))
+for(i in 1:length(mapping))
+  mushDat[[i]] <- mapvalues(mushDat[[i]],mapTables[[i]][,2],mapTables[[i]][,1])
+subMush = mushDat[,c(1,5,7,8,22,23)]
+kable(head(subMush))
+```
+
+
+### Some basic data exploration
+Let's first see if eating in a random selection of species (as in a museum or archive, obviously random in the world depends on population, etc)
+```{r}
+ggplot(mushDat, aes(x=class))+geom_bar(aes(y=stat(count),fill=class))
+```
+That doesn't look terribly reassuring. Of course it depends on where we are in the world.
+```{r}
+ggplot(mushDat, aes(x=class,y=habitat)) +geom_bin2d()
+```
+Well there aren't a lot of wasteland mushrooms, but they are all edible. Paths are apparently more dangerous than you'd expect though. 
+
+Finally we will finish with some clustering. Since we don't have any numeric data we will use kmodes to try to find some relations. 
+```{r}
+kable(kmodes(mushDat[1:4],10)$modes)
+```
+
+Going further we could probably do some decomposition to find the property that is the safest.  
