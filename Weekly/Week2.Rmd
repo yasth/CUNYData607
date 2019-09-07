@@ -1,0 +1,155 @@
+---
+title: "Data607-Assignment2"
+author: "Scott Reed"
+date: "9/5/2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+## Database and R
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(RPostgreSQL)
+library(knitr)
+```
+
+***********
+
+*Note:* Please configure to a blank postgres db (use: createdb DBNAME) with the proper connection strings 
+
+***********
+
+### Postgress connection
+
+```{r connection, ECHO=FALSE, include=FALSE}
+
+dbuser <- "postgres"
+dbpass <- "REPLACEME"
+dbhost <- "localhost"
+dbname <- "REPLACEME"
+dbport <- 5432
+drv <- dbDriver("PostgreSQL")
+conn <- dbConnect(drv, host=dbhost, port=dbport,user=dbuser, password=dbpass)
+```
+
+## Data table setup
+
+We use three data tables one movies, one for raters and then a join table for ratings. 
+
+```{r data Tables setup}
+dbExecute(conn, "CREATE TABLE IF NOT EXISTS movies(
+    movie_id  INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    movie_name VARCHAR NOT NULL
+);")
+dbExecute(conn, "CREATE TABLE IF NOT EXISTS raters(
+    rater_id  INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    rater_name VARCHAR NOT NULL
+);")
+dbExecute(conn, "CREATE TABLE IF NOT EXISTS movieratings(
+    rating_id  INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    rater_id INT NOT NULL REFERENCES raters(rater_id),
+    movie_id INT NOT NULL REFERENCES movies(movie_id),
+    rating decimal
+);")
+
+```
+
+### Table setup
+
+#### Movies
+
+| field      | type       |
+|------------|------------|
+| movie_id   | int (auto) |
+| movie_name | varchar    |
+
+
+#### Raters
+
+| field      | type       |
+|------------|------------|
+| rater_id   | int (auto) |
+| rater_name | varchar    |
+
+#### MovieRatings
+
+| field      | type       |
+|------------|------------|
+| rating_id  | int (auto) |
+| rater_id   | int (fk)   |
+| movie_id   | int (fk)   |
+| rating     | decimal    |
+
+### get some names
+
+We shall grab some name data from NYC and sample a number of them
+```{r get names}
+names <- read.csv("https://data.cityofnewyork.us/api/views/25th-nujf/rows.csv?accessType=DOWNLOAD")
+someNames <- sample(as.character(names[,4]),50)
+head(someNames)
+```
+
+We then write them to the database, and read it back for the IDs. 
+
+```{r insert raters}
+dbBegin(conn)
+tblRaters <- as.data.frame(someNames)
+names(tblRaters) <- c("rater_name")
+dbExecute(conn,sqlAppendTable(conn, "raters", tblRaters,row.names = FALSE ))
+dbCommit(conn)
+tblRaters = dbReadTable(conn,"raters")
+head(tblRaters)
+```
+
+### Get some movies
+
+We get some movies sample them and load them into a database table much like names
+
+```{r}
+load(url("https://stat.duke.edu/~mc301/data/movies.Rdata"))
+someMovies <- sample(as.character(movies$title),6)
+head(someMovies)
+dbBegin(conn)
+tblMovies <- as.data.frame(someMovies)
+names(tblMovies) <- c("movie_name")
+dbExecute(conn,sqlAppendTable(conn, "movies", tblMovies,row.names = FALSE ))
+dbCommit(conn)
+tblMovies = dbReadTable(conn,"movies")
+kable(tblMovies)
+```
+
+### Add some ratings
+
+To generate some ratings we first cross apply movie_id and rater_id and then provide ratings up to 6. We then take any over 5 (our upper bound) to be nulls.
+
+```{r rate movies}
+tblRatings<-expand.grid(tblMovies$movie_id,tblRaters$rater_id)
+names(tblRatings) <- c("movie_id", "rater_id")
+tblRatings$rating <-  sample(6, size = nrow(tblRatings), replace = TRUE)
+tblRatings[which(tblRatings["rating"] > 5),]$rating <- NA
+tail(tblRatings)
+```
+
+We then store and fetch our ratings
+
+```{r}
+dbBegin(conn)
+dbExecute(conn,sqlAppendTable(conn, "movieratings", tblRatings,row.names = FALSE ))
+dbCommit(conn)
+tblRatings = dbReadTable(conn,"movieratings")
+kable(head(tblRatings))
+```
+
+### Joining and getting summary data
+
+If we want we can get some summary data for our ratings but first we must join them.
+
+```{r}
+
+tblAvg <- dbGetQuery(conn,"SELECT movie_name, avg(rating) as avgrating
+   from movieratings INNER JOIN movies ON movieratings.movie_id = movies.movie_id  INNER JOIN raters ON movieratings.rater_id = raters.rater_id  GROUP BY movie_name ORDER BY movie_name")
+kable(head(tblAvg))
+
+```
