@@ -1,0 +1,102 @@
+---
+title: "Week3Assignment"
+author: "Scott Reed"
+date: "9/10/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(stringr)
+library(purrr)
+library(knitr)
+```
+### Week 3
+3)
+```{r bash raw data into shape}
+ raw.data <-"555-1239Moe Szyslak(636) 555-0113Burns, C. Montgomery555-6542Rev. Timothy Lovejoy555 8904Ned Flanders636-555-3226Simpson, Homer5553642Dr. Julius Hibbert"
+name<-unlist(str_extract_all(raw.data,"[A-z\\s\\.,]{2,}"))
+
+```
+
+---1
+
+I suspect I am missing something easier, but to break it up into a few stages we first split on space, and then reverse the split items if they contain ",", next we remove items with a char followed by a trailing period and then globally excise the char ",". Once we have the data we massage it into a data frame and add column names.
+
+```{r}
+splitName<-str_split(name," ")
+reversedName <- map(splitName, function(x) if(any(grepl("\\w,",x))) rev(x) else x)
+noAbrv <- map(reversedName, function(x) Filter(function(t) !grepl("[A-z]+\\.",t),x))
+cleanName <-map(noAbrv,function(x) gsub(",","",x))
+tblName <- as.data.frame(do.call(rbind,cleanName))
+names(tblName)<-c("first_name","last_name")
+kable(tblName)
+```
+  
+  
+---2
+
+```{r}
+grepl("[A-z]{2,3}\\.",name)
+```
+
+---3
+
+This one was hard until I realized that there was a British English to American English issue. 
+
+```{r}
+grepl("\\s[A-z]\\.",name )
+```
+
+
+4)
+
+--1 
+
+    "[0-9]+\\$" 
+
+matches one or more numeric values followed by the char "\$" 
+
+e.g. 3433\$ 3\$
+
+--2 
+
+    "\\b[a-z]{1,4}+\\b" 
+
+Matches lower case alpha strings of 1-4 chars bounded by word boundaries 
+
+e.g. "The cat in the hat." will match "cat" "in" "the" "hat" but not "The" because it isn't wholly lower case.
+
+--3
+
+    ".*?\\.txt$"
+
+Matches any chars (non new line) including zero chars followed by a terminal ".txt" literal
+
+e.g. "starling.txt" or ".txt" would match. 
+
+--4
+
+
+    "\\d{2}/\\d{2}/\\d{4}"
+
+Matches 2 digits separated by "/" from another 2 digits further separated by "/" from 4 digits. 
+
+e.g. 12/12/2005 or 03/03/2019 but not 3/3/2019.
+
+--5 
+
+    "<(.+?)>.+?</\\1>"
+
+Matches at least one char (non new line) in angled brackets "<"">" followed by at least one char (non new line) followed by the the initial in angle brackets match in angled brackets with a leading "/" 
+
+e.g. \<head\>333\</head\>, or \<p/\>333\</p/\>
+
+9) 
+
+We take the secret extract the Uppercase letters and "."s using regex and then swap the "." for spaces and lowercase and title case it for legibility. There could be other messages encoded but my shallow and naive search doesn't come up with much. 
+
+```{r problem 9}
+secret <- "clcopCow1zmstc0d87wnkig7OvdicpNuggvhryn92Gjuwczi8hqrfpRxs5Aj5dwpn0TanwoUwisdij7Lj8kpf03AT5Idr3coc0bt7yczjatOaootj55t3Nj3ne6c4Sfek.r1w1YwwojigOd6vrfUrbz2.2bkAnbhzgv4R9i05zEcrop.wAgnb.SqoU65fPa1otfb7wEm24k6t3sR9zqe5fy89n6Nd5t9kc4fE905gmc4Rgxo5nhDk!gr"
+tools::toTitleCase(tolower(str_replace_all(stringi::stri_join_list(str_extract_all(secret,"[A-Z|\\.]")),"\\."," ")))
+```
