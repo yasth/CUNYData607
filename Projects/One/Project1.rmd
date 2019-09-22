@@ -77,10 +77,10 @@ ggplot(tournamentTable, aes(x=uscf.id, y= abs(tournamentTable$changedScore))) +g
 We can show this, but in looking at the scoring method closer players who have fewers than 30 games move more, and there are a number of confounding factors. Still it is broadly confirmed that there is more stablity expected for older id numbers. Another thing to consider is to look at the outcomes of those players who've been around for a while and are moving a fair bit. These players might be returning to play.
 
 ```{r }
-ggplot() +geom_point(data=tournamentTable, size=3, aes(x=uscf.id, y= tournamentTable$changedScore)) + geom_point(data=tournamentTable[tournamentTable$uscf.id < 1.4e+07 & tournamentTable$changedScore < -50],aes(uscf.id, changedScore), color= "red")
+ggplot() +geom_point(data=tournamentTable, size=3, aes(x=uscf.id, y= tournamentTable$changedScore)) + geom_point(data=tournamentTable[tournamentTable$uscf.id < 1.4e+07 & abs(tournamentTable$changedScore) > 50],aes(uscf.id, changedScore), color= "red")
 ```
 
-We do see a cluster of players who are moving  more than expected in red. Unfortunately they are all moving down. If this were to hold up on a larger data set they would be players the organizers might try to prevent discouragement in this group. If these are returners they are unlikely to become frequent players, absent other factors and without support.
+We do see a cluster of players who are moving  more than expected in red. Unfortunately many are moving down. If this were to hold up on a larger data set they would be players the organizers might try to prevent discouragement in this group. If these are returners the ones giving up their previous score are unlikely to become frequent players, absent other factors and without support.
 
 #### How does the tournament work?
 
