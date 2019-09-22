@@ -1,0 +1,95 @@
+---
+title: "Project 1"
+author: "Scott Reed"
+date: "9/17/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(splitstackshape)
+library(tools)
+library(ggplot2)
+```
+
+## Project 1 Data
+
+First we must get read the data. For the moment we'll gather it into a single string, and remove new lines
+
+```{r data}
+tournament <- readLines("./tournamentinfo.txt")
+tournament <- paste(tournament,collapse="\\n")
+tournament <- gsub("\\\\n"," ", tournament)
+```
+
+Then we just split on the boundary "--...--". As the author has used overly complicated regex previously (see Week 1) in this case we will just reprocess using the built in functions which actually gets us a rough but mostly parsed table.
+
+```{r prepare data}
+tournamentResults <- strsplit(tournament, "-----------------------------------------------------------------------------------------")
+tournamentTable<-read.table(text = paste(tournamentResults[[1]][2:length(tournamentResults[[1]])],collapse="\n"), sep="|", header = TRUE)
+kable(head(tournamentTable[c(1,2,3,12,6,7,8)]))
+```
+
+Now that we have done the basics. One Column (1 line of 2 technically) contains three different bits of data that we need, further complicating things is that the data has some data that we don't need (provisional ranking?).So we have to split it up. We then title case the player names, do some name tidying, and mass trim whitespace. 
+
+Then we do a column split on the Round tables to get a the sub column data.
+
+```{r First pass cleanup}
+tournamentTable <- cbind(tournamentTable[-12] ,lapply(strcapture("(\\d+) / R:\\s*(\\d+)P?\\d*\\s*->\\s*(\\d+)P?\\d*",as.character(tournamentTable$USCF.ID...Rtg..Pre..Post.),data.frame(uscf.id="",preScore="",postScore="")),function(x) as.numeric(as.character(x))))
+tournamentTable$Player.Name <- toTitleCase(tolower(trimws(as.character(tournamentTable$Player.Name))))
+names(tournamentTable)[11] <- "State"
+names(tournamentTable)[3] <- "Points"
+names(tournamentTable)[grep("^Round",colnames(tournamentTable))]<- paste(rep("Round",7),seq(1,7), sep = "")
+tournamentTable <- cSplit(tournamentTable, grep("^Round",colnames(tournamentTable)), " ")
+kable(head(tournamentTable[,c(1,2,17,18,19,20)]))
+```
+
+Next we messily re store the referenced score using a match lookup.  We then get a mean of the row and round it (for output purposes).
+
+Next to top it all off we write out the csv file. We then read it and display it as an end to end check of the output. 
+
+```{r restore the referenced score}
+tournamentTable$oppScore1 <- as.numeric(tournamentTable$preScore[match(tournamentTable$Round1_2,tournamentTable$Pair)])
+tournamentTable$oppScore2 <- as.numeric(tournamentTable$preScore[match(tournamentTable$Round2_2,tournamentTable$Pair)])
+tournamentTable$oppScore3 <- as.numeric(tournamentTable$preScore[match(tournamentTable$Round3_2,tournamentTable$Pair)])
+tournamentTable$oppScore4 <- as.numeric(tournamentTable$preScore[match(tournamentTable$Round4_2,tournamentTable$Pair)])
+tournamentTable$oppScore5 <- as.numeric(tournamentTable$preScore[match(tournamentTable$Round5_2,tournamentTable$Pair)])
+tournamentTable$oppScore6 <- as.numeric(tournamentTable$preScore[match(tournamentTable$Round6_2,tournamentTable$Pair)])
+tournamentTable$oppScore7 <- as.numeric(tournamentTable$preScore[match(tournamentTable$Round7_2,tournamentTable$Pair)])
+tournamentTable$oppMean <- round( rowMeans(tournamentTable[,31:37], na.rm = TRUE))
+write.csv(tournamentTable[,c(2,4,3,15,38)],"chess.csv", row.names = FALSE )
+dogFood <- read.csv("chess.csv")
+kable(head(dogFood))
+```
+
+### Analysis
+
+#### Serial Position effect on play
+
+One expects that the longer one has been playing (the lower the USCF ID) the more consistent the player. 
+
+```{r}
+tournamentTable$changedScore <-  (tournamentTable[,16] - tournamentTable[,15])
+ggplot(tournamentTable, aes(x=uscf.id, y= abs(tournamentTable$changedScore))) +geom_point(size=3) +  geom_smooth(method=lm)
+```
+
+We can show this, but in looking at the scoring method closer there is a scaling factor on the amount one can change given a number of games played (and other complications besides). This leads to another possibility though, a player who has a  (relatively) low USCF id and a low number of games (wide variability) is likely either a player returning to play or a very infrequent competitor. 
+
+```{r }
+ggplot() +geom_point(data=tournamentTable, size=3, aes(x=uscf.id, y= tournamentTable$changedScore)) + geom_point(data=tournamentTable[tournamentTable$uscf.id < 1.4e+07 & tournamentTable$changedScore < -50],aes(uscf.id, changedScore), color= "red")
+```
+
+We do see a cluster of players who are moving  more than expected in red. Unfortunately they are all moving down. The mere ability to move so strongly negative suggests they have few games for their ID rank. If this were to hold up on a larger data set they would be players the organizers might try to prevent discouragement in this group. If returners and infrequent players are going to mostly lose score and quite majorly they are unlikely to become frequent players, absent other factors and without support.
+
+#### How does the tournament work?
+
+The author doesn't know how chess tournaments in general are setup and certainly not this one in particular. Does a player get a set opponent list at the start of the tournament, or does their performance change their opponents?
+
+To look into this we can look at the relative score of the first opponent versus the second after a win and after a loss.
+```{r}
+boxplot(tournamentTable$oppScore2[tournamentTable$Round1_1=="W"] - tournamentTable$oppScore1[tournamentTable$Round1_1=="W"],tournamentTable$oppScore2[tournamentTable$Round1_1=="L"] - tournamentTable$oppScore1[tournamentTable$Round1_1=="L"], title="Round 2 Strength vs Round 1", names = c("After Win", "After Loss"))
+boxplot(tournamentTable$oppScore3[tournamentTable$Round2_1=="W" & tournamentTable$Round1_1=="W"] - tournamentTable$oppScore2[tournamentTable$Round2_1=="W" & tournamentTable$Round1_1=="W"],tournamentTable$oppScore3[tournamentTable$Round2_1=="L" & tournamentTable$Round1_1=="L" ] - tournamentTable$oppScore2[tournamentTable$Round2_1=="L" & tournamentTable$Round1_1=="L"], title="Round 2 Strength vs Round 1", names = c("After Double Win", "After Double Loss"))
+```
+
+It seems very clear that winners are matched with harder opponents. 
