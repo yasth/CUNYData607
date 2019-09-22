@@ -31,7 +31,7 @@ tournamentTable<-read.table(text = paste(tournamentResults[[1]][2:length(tournam
 kable(head(tournamentTable[c(1,2,3,12,6,7,8)]))
 ```
 
-Now that we have done the basics. One Column (1 line of 2 technically) contains three different bits of data that we need, further complicating things is that the data has some data that we don't need (provisional ranking?).So we have to split it up. We then title case the player names, do some name tidying, and mass trim whitespace. 
+Now that we have done the basics. One Column (1 line of 2 technically) contains three different bits of data that we need, further complicating things is that the data has some data that we don't need (provisional ranking?).So we have to split it up. We then title case the player names, do some name tidying. 
 
 Then we do a column split on the Round tables to get a the sub column data.
 
