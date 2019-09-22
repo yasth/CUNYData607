@@ -65,7 +65,7 @@ kable(head(dogFood))
 
 ### Analysis
 
-#### Serial Position effect on play
+#### USCF ID effect on play
 
 One expects that the longer one has been playing (the lower the USCF ID) the more consistent the player. 
 
@@ -74,13 +74,13 @@ tournamentTable$changedScore <-  (tournamentTable[,16] - tournamentTable[,15])
 ggplot(tournamentTable, aes(x=uscf.id, y= abs(tournamentTable$changedScore))) +geom_point(size=3) +  geom_smooth(method=lm)
 ```
 
-We can show this, but in looking at the scoring method closer there is a scaling factor on the amount one can change given a number of games played (and other complications besides). This leads to another possibility though, a player who has a  (relatively) low USCF id and a low number of games (wide variability) is likely either a player returning to play or a very infrequent competitor. 
+We can show this, but in looking at the scoring method closer players who have fewers than 30 games move more, and there are a number of confounding factors. Still it is broadly confirmed that there is more stablity expected for older id numbers. Another thing to consider is to look at the outcomes of those players who've been around for a while and are moving a fair bit. These players might be returning to play.
 
 ```{r }
 ggplot() +geom_point(data=tournamentTable, size=3, aes(x=uscf.id, y= tournamentTable$changedScore)) + geom_point(data=tournamentTable[tournamentTable$uscf.id < 1.4e+07 & tournamentTable$changedScore < -50],aes(uscf.id, changedScore), color= "red")
 ```
 
-We do see a cluster of players who are moving  more than expected in red. Unfortunately they are all moving down. The mere ability to move so strongly negative suggests they have few games for their ID rank. If this were to hold up on a larger data set they would be players the organizers might try to prevent discouragement in this group. If returners and infrequent players are going to mostly lose score and quite majorly they are unlikely to become frequent players, absent other factors and without support.
+We do see a cluster of players who are moving  more than expected in red. Unfortunately they are all moving down. If this were to hold up on a larger data set they would be players the organizers might try to prevent discouragement in this group. If these are returners they are unlikely to become frequent players, absent other factors and without support.
 
 #### How does the tournament work?
 
@@ -89,7 +89,7 @@ The author doesn't know how chess tournaments in general are setup and certainly
 To look into this we can look at the relative score of the first opponent versus the second after a win and after a loss.
 ```{r}
 boxplot(tournamentTable$oppScore2[tournamentTable$Round1_1=="W"] - tournamentTable$oppScore1[tournamentTable$Round1_1=="W"],tournamentTable$oppScore2[tournamentTable$Round1_1=="L"] - tournamentTable$oppScore1[tournamentTable$Round1_1=="L"], title="Round 2 Strength vs Round 1", names = c("After Win", "After Loss"))
-boxplot(tournamentTable$oppScore3[tournamentTable$Round2_1=="W" & tournamentTable$Round1_1=="W"] - tournamentTable$oppScore2[tournamentTable$Round2_1=="W" & tournamentTable$Round1_1=="W"],tournamentTable$oppScore3[tournamentTable$Round2_1=="L" & tournamentTable$Round1_1=="L" ] - tournamentTable$oppScore2[tournamentTable$Round2_1=="L" & tournamentTable$Round1_1=="L"], title="Round 2 Strength vs Round 1", names = c("After Double Win", "After Double Loss"))
+boxplot(tournamentTable$oppScore3[tournamentTable$Round2_1=="W" & tournamentTable$Round1_1=="W"] - tournamentTable$oppScore1[tournamentTable$Round2_1=="W" & tournamentTable$Round1_1=="W"],tournamentTable$oppScore3[tournamentTable$Round2_1=="L" & tournamentTable$Round1_1=="L" ] - tournamentTable$oppScore1[tournamentTable$Round2_1=="L" & tournamentTable$Round1_1=="L"], title="Round 3 Strength vs Round 1", names = c("After Double Win", "After Double Loss"))
 ```
 
 It seems very clear that winners are matched with harder opponents. 
