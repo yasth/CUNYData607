@@ -1,0 +1,59 @@
+---
+title: "Week5"
+author: "Scott Reed"
+date: "9/22/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+```
+
+#### Airline CSV
+
+What writes great csv files R can read without a problem? R does. So let us create a matrix (transposed because I misread things), and write that out. We then read it back in.
+```{r airline}
+airlineData<-t(matrix(c("","","Los Angeles", "Phoenix", "San Diego", "San Francisco", "Seattle","Alaska", "on time", 497,221,212,503,1841,"","delayed",62,12,20,102,305,"","","","","","","","AM WEST","on time",694,4840,383,320,201,"","delayed",117,415,65,129,61),nrow=7))
+write.csv(airlineData,"airlineData.csv")
+airlineData <- read.csv("airlineData.csv", as.is = TRUE)
+kable(airlineData)
+```
+
+## Smashed Data. 
+
+First we take off the left index count and get a data frame. Then we take the top row and make the the names of the data. 
+Next we cleanup the blank row. Then we dupe the category level labels.
+
+```{r cleanup}
+
+airlineData<-as.data.frame(airlineData[-1],stringsAsFactors = FALSE)
+names(airlineData)<-airlineData[1,]
+names(airlineData)[1:2]<-c("Airline","Flight Status")
+airlineData<-airlineData[c(-1,-4),]
+airlineData[2,1]<-airlineData[1,1]
+airlineData[4,1]<-airlineData[3,1]
+kable(airlineData)
+```
+
+Because it says to use tidyr we can't just use the base functions quixotically. So we gather into City with Flights excluding airlinge and flight status and sorting on airline.
+```{r tidy}
+airlineDataLong <- gather(airlineData ,key=City, value="Flights", -"Flight Status",-Airline) %>% arrange(Airline)
+airlineDataLong$Flights<-as.numeric(airlineDataLong$Flights)
+kable(airlineDataLong)
+```
+
+
+### Analysis
+
+```{r ontimepercentage}
+onTime <- airlineDataLong %>% spread(`Flight Status`,"Flights")
+onTime$onTimePercent <- onTime$`on time` / (onTime$delayed+ onTime$`on time`) *100
+onTime <-onTime %>% arrange(onTimePercent)
+ggplot(onTime, aes(City, onTimePercent, color=Airline, size=40))+geom_point()
+```
+
+We can clearly see that for ever city Am West has a lower on-time percentage. 
