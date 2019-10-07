@@ -1,0 +1,166 @@
+---
+title: "Project2"
+author: "Scott Reed"
+date: "10/5/2019"
+output: html_document
+---
+
+*****
+
+*N.B.* This requires the rio and rvest packages in addition to the standard tidyverse.
+
+*****
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rio)
+library(knitr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(rvest)
+set.seed(7289679)
+
+```
+
+## Resolving overchoice 
+
+There are a lot of choices of data sets to look at. This caused the author some indecision. We can use R to take care of some of it though. There are 47 pages, and we need 3 examples, though some seem not quite fit for the assignment. Of course we have set the random seed so this is reproducible. 
+
+```{r }
+sample(1:47,10)
+```
+
+## Evaluation of Page 30
+
+Page 30's first data set posted is the [CDC SMART BRFSS](https://www.cdc.gov/brfss/smart/Smart_data.htm) (i.e. Metro area Behavioral Risk Factor). For data currency reasons we are using the 2017 data instead of the 2016 data that is suggested in the post. The extracted xpt file is 356 mb so the remote pull and unzip/load takes a fair amount of time. Sp we won't run it.
+
+```{r eval=FALSE}
+mmsaRaw <- rio::import("https://www.cdc.gov/brfss/annual_data/2017/files/MMSA2017_XPT.zip")
+kable(head(mmsaRaw[1:3]))
+```
+
+Well that is a lot of data. Unfortunately it looks tidy, there are a lot of data points for each response, but each observation variable is a column, each observation is a row, and each type of observation is broken out (there is only one).
+
+## Evaluation of page 16
+
+Page 16 does not have a data set posted. 
+
+## Evaluation of page 1
+
+The first data set is the Census PINC-03 data set (All races 25 Years+ Total Work Experience) with the appropriate library R can read the xslx
+```{r}
+pincRaw <-rio::import("https://www2.census.gov/programs-surveys/cps/tables/pinc-03/2019/pinc03_1_1_1_1.xls")
+kable(head(pincRaw))
+```
+
+The data did not import cleanly so we are going to have to do some work. First we slice off some extra rows, and combine and fill the column structure to get to a reasonable table. We then have to trim off the summary data they provide.
+```{r}
+pincRaw <- slice(pincRaw,10:n()-1)
+pincCols <- t(fill(as.data.frame(t(pincRaw[3:5,])),c(1,2,3) ))
+colnames(pincRaw)<- gsub("Degree Graduate (Incl GED)", "Degree", gsub('(\\sNA)|(NA\\s)', '' ,paste(pincCols[1,],pincCols[2,],pincCols[3,], sep=" ")))
+pinc <- slice(pincRaw,append(7,9:(n()-5))) %>% select(-Total)
+
+kable(head(pinc))
+```
+
+### Tidy
+
+We simply gather an education column out of the columns with Thousands as the variable and the income ranges excluded. We also coerce the variable to numeric.
+
+```{r}
+pincTidy <- pinc %>% gather(Education, Thousands, -Characteristic)
+pincTidy$Thousands <- as.numeric(pincTidy$Thousands)
+kable(head(pincTidy))
+```
+
+### Analysis 
+
+We can see the number of members without earnings.
+
+```{r}
+earningless <- pincTidy %>% filter(Characteristic == "Without Earnings") %>%  group_by(Education) %>% arrange(Thousands)
+kable(earningless)
+earningless[c(1,9),] %>%ggplot(aes( Education, Thousands)) + geom_bar(stat="identity")
+```
+
+## Evaluation of Page 3
+
+Page 3 isn't a specific data set, but the unicef data sets. They are very nice, but there are so many we risk overchoice again,  We'll keep looking. 
+
+## Evaluation of Page 4
+
+Page 4's first data post is the Illinois Report card data which is reported to be already tidy. 
+
+## Evaluation of Page 18
+
+Page 18 gives us unemployment data from the World Bank. We slice off a row, and take out a number of summary columns.
+
+```{r load Unemployment}
+unempRaw<-rio::import("https://github.com/ErindaB/Other/raw/master/Unemployment%20Rate%2C%20seas.%20adj..xlsx")
+unempRaw<-slice(unempRaw, 2:n())
+unempRaw <- unempRaw %>% select(-c("Advanced Economies"  ,"EMDE East Asia & Pacific"  ,"EMDE Europe & Central Asia"     ,"Emerging Market and Developing Economies (EMDEs)","High Income Countries"   ,"Hong Kong SAR, China" ,"EMDE Latin America & Caribbean"    ,"Low-Income Countries (LIC)"  ,"Middle-Income Countries (MIC)"                   ,"EMDE Middle East & N. Africa"  ,"EMDE South Asia","EMDE Sub-Saharan Africa","World (WBG members)"))
+
+names(unempRaw)[[1]]<-"Year"
+kable(head(unempRaw))
+```
+
+### Tidying
+
+We Gather the data by the country columns excluding the year, generating a new column country and the unemployment rate. This puts it in tidy form.
+
+```{r}
+unempTidy <-unempRaw %>% gather(Country, UnempRate, -Year) %>% arrange( Country, Year)
+unempTidy$UnempRate <- as.numeric(unempTidy$UnempRate)
+kable(head(unempTidy))
+```
+
+
+
+### Analysis
+
+We can find some world rates if we wish. We can also see the distribution in 2001. 
+
+```{r}
+worldRate<-unempTidy %>% group_by(Year) %>% summarize(rate=mean(UnempRate, na.rm = TRUE ))
+unempTidy %>% group_by(Year) %>% summarize(rate=mean(UnempRate, na.rm = TRUE )) %>% ggplot(aes(Year,rate)) +geom_bar(stat="identity")
+spaceOdyessy <- unempTidy %>% filter(Year==2001) %>% filter(!is.na(UnempRate)) %>% arrange(desc(UnempRate)) 
+spaceOdyessy$Country <- factor(spaceOdyessy$Country, spaceOdyessy$Country)
+spaceOdyessy %>% ggplot(aes(Country, UnempRate)) +geom_bar(stat="identity")
+```
+
+## Page 19
+
+Page 19 has no data set
+
+## Page 22
+
+Page 22 is a Wikipedia table for Emmy winners. We use rvest to pull it down, and get it into a table. Thankfully rvest takes care of much of the filling. We splice out years before 1966 as a lot of it is misaligned with "modern" data.
+
+```{r}
+emmyHTML <- read_html("https://en.wikipedia.org/wiki/List_of_Primetime_Emmy_Award_winners")
+emmyTable<-rvest::html_table(emmyHTML, fill=TRUE)[[1]]
+emmyTable<-emmyTable[emmyTable$Year>=1966,]
+kable(head(emmyTable))
+```
+
+### Tidy
+
+First we gather based Category excluding year; then we sort on year. Next we break up the Winner entry to extract the network from the parens
+
+```{r}
+emmyTable<-gather(emmyTable, Category, Winner, -Year) %>% arrange (Year)
+emmyTidy<-emmyTable%>% extract(Winner, c("Winner","Network"), "(.+) \\((.+)\\)")
+kable(head(emmyTidy))
+```
+
+### Analysis
+
+Some basic analysis shows that NBC, CBS, ABC, and HBO are in order the most awarded networks. We can also see the changing breakdown in winning networks as years progress. We can see that the non top winners have started taking more Emmys. 
+
+```{r}
+networkCount <-emmyTidy %>% group_by(Network) %>% summarize(count=n()) %>% filter(count>8)  %>% arrange(desc(count))
+kable(networkCount)
+emmyTidy %>% filter(Network %in% networkCount$Network) %>% ggplot(aes(x=Year,color=Network)) +geom_bar()
+```
