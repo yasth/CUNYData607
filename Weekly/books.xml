@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"  ?>
+<Books>
+    <Book>
+        <Authors>
+            <Author>Anthony J Martin</Author>
+        </Authors>
+        <Published>18-03-13</Published>
+        <ISBN-13>978-1605984995</ISBN-13>
+        <Subjects>
+            <Subject>Fossils</Subject>
+            <Subject>Dinosaurs</Subject>
+            <Subject>Icythyology</Subject>
+        </Subjects>
+        <Title>Dinosaurs Without Bones</Title>
+        <Subtitle>Dinosaur Lives Revealed by their Trace Fossils</Subtitle>
+    </Book>
+    <Book>
+        <Authors>
+            <Author>Anthony J Martin</Author>
+        </Authors>
+        <Published>18-03-06</Published>
+        <ISBN-13>978-1681776569</ISBN-13>
+        <Subjects>
+            <Subject>Dinosaurs</Subject>
+            <Subject>Biology &amp; Life Sciences</Subject>
+            <Subject>Paleontolgy</Subject>
+        </Subjects>
+        <Title>The Evolution Underground</Title>
+        <Subtitle>Burrows, Bunkers, and the Marvelous Subterranean World Beneath our Feet</Subtitle>
+    </Book>
+    <Book>
+        <Authors>
+            <Author>"Robert Saruda</Author>
+            <Author>Matthew Reinhart</Author>
+        </Authors>
+        <Illustrators>
+            <Illustrator>"Robert Saruda</Illustrator>
+            <Illustrator>Matthew Reinhart</Illustrator>
+        </Illustrators>
+        <Published>12-07-05</Published>
+        <ISBN-13>978-0763622282</ISBN-13>
+        <Subjects>
+            <Subject>Children's Exploration</Subject>
+            <Subject>Veterinary Encyclopedia</Subject>
+            <Subject>Children's Fossil</Subject>
+        </Subjects>
+        <Title>Encyclopedia Prehistorica Dinosaurs</Title>
+        <Subtitle>The Definitive Pop-Up</Subtitle>
+    </Book>
+</Books>

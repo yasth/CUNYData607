@@ -1,0 +1,25 @@
+[{
+    "Authors": ["Anthony J Martin"],
+    "Published": "18-03-13",
+    "ISBN-13":	"978-1605984995",
+    "Subjects":	["Fossils", "Dinosaurs", "Icythyology"],
+    "Title": "Dinosaurs Without Bones",
+    "Subtitle": "Dinosaur Lives Revealed by their Trace Fossils"
+},
+{
+    "Authors": ["Anthony J Martin"],
+    "Published": "18-03-06",
+    "ISBN-13":	"978-1681776569",
+    "Subjects":	["Dinosaurs", "Biology & Life Sciences", "Paleontolgy"],
+    "Title": "The Evolution Underground",
+    "Subtitle": "Burrows, Bunkers, and the Marvelous Subterranean World Beneath our Feet"
+},
+{
+    "Authors": ["Robert Saruda", "Matthew Reinhart"],
+    "Illustrators": ["Robert Saruda", "Matthew Reinhart"],
+    "Published": "12-07-05",
+    "ISBN-13":	"978-0763622282",
+    "Subjects":	["Children's Exploration", "Veterinary Encyclopedia", "Children's Fossil"],
+    "Title": "Encyclopedia Prehistorica Dinosaurs",
+    "Subtitle": " The Definitive Pop-Up"
+}]
