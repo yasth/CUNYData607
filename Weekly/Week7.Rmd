@@ -1,0 +1,78 @@
+---
+title: "Cuny607Week7"
+author: "Scott Reed"
+date: "10/8/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(rvest)
+library(jsonlite)
+library(RCurl)
+library(purrr)
+library(xml2)
+library(XML)
+library(knitr)
+```
+
+
+-------
+
+This requires rvest, jsonlite, xml2, purr, and RCurl 
+
+------
+
+### The book data set
+
+The author admits that dinosaurs can seem rather juvenile, but there is some fascinating work out there, and much more change and turmoil than one would expect for a field focused on the long ago. _Dinosaurs Without Bones_ is highly recommended.
+
+* [Books.html](http://www.yasth.org/data607/books.html)
+* [Books.json](http://www.yasth.org/data607/books.json)
+* [Books.xml](http://www.yasth.org/data607/books.xml)
+
+### JSON
+
+```{r JSON}
+jsonTable <- fromJSON(getURL("http://www.yasth.org/data607/books.json"))
+kable(jsonTable)
+```
+
+### XML
+
+
+```{r xml}
+rawXML <- XML::xmlParse(getURL("http://www.yasth.org/data607/books.xml"))
+xmlTable <- XML::xmlToDataFrame(rawXML)
+kable(xmlTable)
+```
+
+### HTML
+
+
+
+```{r html}
+rawHtml <- xml2::read_html("http://www.yasth.org/data607/books.html")
+htmlTable <- rvest::html_table(rawHtml)[[1]]
+kable(htmlTable)
+```
+
+### Analysis 
+
+For simple types they are all the same.
+
+```{r}
+htmlTable$Title
+jsonTable$Title
+xmlTable$Title
+```
+
+The HTML table as constructed has lost data as Authors and subjects are concatenated in comma seperated form. This is obviously a contrived example, but it shows that there might be data loss issues. We can of course correct for this to some extent, but in real world data sets and situations it will be error prone (some professionals have commas in their authorial names, etc.) The XML table has also because of the default data frame conversion a concatentation. One can of course use the actual representation of the data to fetch it in a more accurate form.
+
+```{r}
+xmlTable$Authors
+jsonTable$Authors
+htmlTable$Authors
+unlist(strsplit(htmlTable$Authors,","))
+purrr::map(XML::getNodeSet(rawXML, "//Books//Authors"), ~ XML::xmlToList(.x))
+```
