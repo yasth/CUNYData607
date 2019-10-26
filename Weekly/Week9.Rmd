@@ -1,0 +1,74 @@
+---
+title: "Week9"
+author: "Scott Reed"
+date: "10/21/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(knitr)
+library(jsonlite)
+library(keyring)
+library(lubridate)
+library(purrr)
+library(RCurl)
+library(stringi)
+library(tidyr)
+library(ggplot2)
+nytApiKey <- key_list("NYTAPI")[[2]]
+nytApiSecret<-key_get("NYTAPI",nytApiKey)
+```
+
+## Fetching Data
+
+Let's fetch bestselling authors monthly for a year
+
+```{r}
+startDate<-lubridate::make_date(2018,1,1)
+dates<-startDate + months(0:11)
+```
+
+
+We can get the hardcover fiction list, and the ebook fiction list with our api key, but must add a wait period. 
+```{r }
+
+hardCoverLists<-purrr::map(dates, function(x) {
+Sys.sleep(30) 
+jsonlite::fromJSON(paste( "https://api.nytimes.com/svc/books/v3/lists/",x,"/hardcover-fiction.json?api-key=",nytApiKey,sep=""))
+}
+)
+```
+
+```{r }
+
+youngAdult<-purrr::map(dates, function(x) {
+Sys.sleep(30) 
+jsonlite::fromJSON(paste( "https://api.nytimes.com/svc/books/v3/lists/",x,"/young-adult-hardcover.json?api-key=",nytApiKey,sep=""))
+}
+)
+```
+
+
+#### Analysis
+
+
+With this we can see that YA has more weeks on list, and both lists have a lot of new enterants (the mean number of weeks on list goes way down) in the last quarter. 
+
+```{r}
+weeksOnList <- data.frame(Month=month(dates,label = TRUE),ya=unlist(purrr::map(youngAdult, ~ mean(.x$results$books$weeks_on_list))),adult=unlist(purrr::map(hardCoverLists, ~ mean(.x$results$books$weeks_on_list))))
+weeksOnList %>% gather("BookType","weeks", -Month )
+
+weeksOnList %>% gather("BookType","weeks", -Month ) %>% ggplot(aes(Month,weeks,group=BookType,color=BookType))+ geom_line()
+```
+
+We can also see how many have official NYTimes reviews. It looks like for our time period this doesn't include YA. 
+
+```{r}
+bookReviewRatio <- data.frame(Month=month(dates,label = TRUE),ya=unlist(purrr::map(youngAdult, ~ mean(1-stri_isempty( .x$results$books$book_review_link)))),adult=unlist(purrr::map(hardCoverLists, ~ mean(1-stri_isempty( .x$results$books$book_review_link)))))
+
+bookReviewRatio %>% gather("BookType","HaveReview", -Month )
+
+bookReviewRatio %>% gather("BookType","HaveReview", -Month ) %>% ggplot(aes(Month,HaveReview,group=BookType,color=BookType))+ geom_line()
+
+```
