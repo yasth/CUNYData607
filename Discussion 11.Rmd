@@ -1,0 +1,72 @@
+---
+title: "Discussion11"
+author: "Scott Reed"
+date: "11/6/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Discussion 11 
+
+While we often think of recommender systems as being web based, a lot of work goes into other channels. Email in particular is a major driver for a lot of businesses. We will be looking at Seamless, a food delivery company. They do a number of email promotions some of which are recommender based. 
+
+### Scenario Design
+
+#### User side
+
+1) Delivery or pickup users, ideally with some interaction history. 
+
+2) They want to easily answer the question of what to do about food. 
+
+3) We can provide options, ideally things that the user would be enticed into ordering from.
+
+
+#### Company side
+
+1) Company utilization optimizers
+
+2) They want to increase usage.
+
+3) We can tailor call to actions to the user and provide recommendations that will increase usage
+
+
+## Reverse Engineering
+
+One advantage of email is that we can see a large sample of interactions that seamless attempts with a user. 
+
+They tend to send out a few different types, one of them that we will investigate closely is an email with two sets of recommendations one above the other. Broadly they seem to be in certain categories:
+
+* Trending Offers (discounts)
+* "Since you enjoyed"
+* Popular restaurants
+* New 
+* Top Rated
+* Best value
+
+There are also a number of other emails:
+
+* Weather triggered
+* Day triggered
+* Cuisine triggered?
+
+We have data from two users of similar but not identical cuisine choices in the same area. 
+
+### Probable Method
+
+The most obvious recommendation is the since you enjoyed section. It appears that they favor restaurants that one has ordered from multiple times. They seem to do a fairly basic cuisine expansion. 
+
+Interestingly it appears there is might be some filtering on the top rated and popular categories as the two users data is different. 
+
+Also the use of discounts seems to influence the number of Trending offers and Best Value recommendations in the mix.
+
+### Recommendations
+
+Instead of recommending restaurants it might be interesting to try doing it by dish. There are of course issues in that one doesn't know who the email account holder is in relation to the ordered dish, but one would imagine there is a predictable sequence of ordering that should aid. 
+
+Seamless probably sends out too much email, very little of it was opened prior to this task on either user's account. 
+
+There is a distinct lack of social proof, and flocking. The recommendations seem weak because of the lack of backing. 
+
