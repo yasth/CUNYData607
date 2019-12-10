@@ -1,0 +1,113 @@
+---
+atitle: Map Of At Risk Occupations
+author: "Scott Reed"
+date: "12/8/2019"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(tabulizer)
+library(purrr)
+library(knitr)
+library(rio)
+library(usmap)
+```
+
+## Data Acquisition
+
+### Data from PDF table in paper
+
+We extract out the table from Frey and Osborne's paper which if unfortunately in PDF form. We use the tabulizer library to extract it from the PDF. We trim off uneeded tables and then remove the header rows from each of the pages table. We then combine the paged tables into one table, and name the rows. We then filter out multi line rows by removing blank ranks. As a sanity check we can see that we have 702 rows in our table the same number of ranks in the paper. 
+```{r data}
+dataTables<-extract_tables("https://www.oxfordmartin.ox.ac.uk/downloads/academic/The_Future_of_Employment.pdf")
+trimTables<-dataTables[3:length(dataTables)]
+trimTables<-purrr::map(trimTables,~ subset(as.data.frame(.x, stringsAsFactors=FALSE , row.names=NULL)))
+trimTables<-purrr::map(trimTables, ~.x[3:nrow(.x),])
+autoTable<-bind_rows(trimTables)[,1:5]
+names(autoTable)<- dataTables[[3]][2,]
+autoTable<-autoTable %>%  na_if("") %>% drop_na(Rank)
+kable(head(autoTable))
+```
+
+### Data from BLS
+
+We can fairly directly download from BLS, though we do unfortunately have to pick out the right file of the two in the zip, which adds some complication.
+
+```{r BLS}
+destFile <-"state_M2018_dl.zip"
+download.file("https://www.bls.gov/oes/special.requests/oesm18st.zip",destfile=destFile)
+BLS18<-rio::import(unzip(destFile,"oesm18st/state_M2018_dl.xlsx"))
+BLS18$JOBS_1000 <- (as.numeric(BLS18$JOBS_1000))
+```
+We can also grab the 09 data, which is unfortunately in a different storage format (prior to 09 it seems to be a differing data format)
+```{r BLS09}
+destFile <-"state_M2009_dl.zip"
+download.file("https://www.bls.gov/oes/special.requests/oesm09st.zip",destfile=destFile)
+BLS09<-rio::import(unzip(destFile,"state_dl.xls"))
+BLS09$JOBS_1000 <- (as.numeric(BLS09$JOBS_1000))
+
+```
+
+### Analysis
+
+We then simply take the Jobs per 1000 of the top and bottom job codes and sum them up per state. We also exclude DC as it is a small region that is unusual in job composition, and an outlier. 
+
+```{r }
+hardToAutomate<-head(autoTable$`SOC code`,100)
+easyToAutomate<-tail(autoTable$`SOC code`,100)
+stateLevelHard<-BLS18 %>% filter(ST!="DC") %>% group_by(STATE) %>% filter(OCC_CODE %in% hardToAutomate) %>% tally(JOBS_1000)
+kable(head(stateLevelHard %>% arrange(n)))
+kable(head(stateLevelHard %>% arrange(desc(n))))
+stateLevelEasy<-BLS18 %>% filter(ST!="DC") %>% group_by(STATE) %>% filter(OCC_CODE %in% easyToAutomate) %>% tally(JOBS_1000)
+kable(head(stateLevelEasy %>% arrange(n)))
+kable(head(stateLevelEasy %>% arrange(desc(n))))
+stateLevelHard09<-BLS09 %>% filter(ST!="DC") %>% group_by(STATE) %>% filter(OCC_CODE %in% hardToAutomate) %>% tally(JOBS_1000)
+stateLevelEasy09<-BLS09 %>% filter(ST!="DC") %>% group_by(STATE) %>% filter(OCC_CODE %in% easyToAutomate) %>% tally(JOBS_1000)
+kable(head(stateLevelHard09%>% arrange(n)))
+```
+
+### Mapping
+```{r}
+names(stateLevelEasy)<-tolower(names(stateLevelEasy))
+names(stateLevelHard)<-tolower(names(stateLevelHard))
+plot_usmap(data = stateLevelEasy, values = "n", color = "black") + scale_fill_continuous(name="per 1000 easy")+ theme(legend.position = "right") 
+plot_usmap(data = stateLevelHard, values = "n", color = "black") + scale_fill_continuous(name="per 1000 hard" ) + theme(legend.position = "right") 
+
+```
+
+Looking at this we can see that Nevada looks to be in trouble with lots of easy to automate industry workers, and few hard. 
+
+We can go a bit deeper and look at the difference between 2009 and 2018
+
+```{r}
+names(stateLevelEasy09)<-c("state","priorN")
+names(stateLevelHard09)<-c("state","priorN")
+stateLevelEasyChange <- stateLevelEasy %>% inner_join (stateLevelEasy09,by=c("state"),name="priorN") %>% mutate(gain=n-priorN)
+plot_usmap(data=stateLevelEasyChange, values ="gain", color = "black") + scale_fill_continuous(name="Easy Gain/Loss" ) + theme(legend.position = "right")
+stateLevelHardChange <- stateLevelHard %>% inner_join (stateLevelHard09,by=c("state"),name="priorN") %>% mutate(gain=n-priorN)
+plot_usmap(data=stateLevelHardChange, values ="gain", color = "black") + scale_fill_continuous(name="Hard Gain/Loss" ) + theme(legend.position = "right")
+stateLevelEasyDelta <- stateLevelEasy %>% inner_join (stateLevelEasy09,by=c("state"),name="priorN") %>% mutate(gain=n/priorN)
+kable(head(stateLevelEasyDelta %>% arrange(gain)))
+plot_usmap(data=stateLevelEasyDelta, values ="gain", color = "black") + scale_fill_continuous(name="Easy 2018 % of 2009 level" ) + theme(legend.position = "right")
+stateLevelHardDelta <- stateLevelHard %>% inner_join (stateLevelHard09,by=c("state"),name="priorN") %>% mutate(gain=n/priorN)
+plot_usmap(data=stateLevelHardDelta, values ="gain", color = "black") + scale_fill_continuous(name="Hard 2018 % of 2009 level" ) + theme(legend.position = "right")
+
+```
+
+
+Interestingly enough it seems both hard and easy to automate fields are losing numbers. This suggests a broadening that automation isn't the only factor in job loss. 
+
+We can briefly look at growing and falling occupations.
+```{r}
+OCCData09<-BLS09 %>% group_by(`OCC_CODE`)  %>% tally(JOBS_1000) %>%select(OCC_CODE, n)
+OCCData18<-BLS18 %>% group_by(`OCC_CODE`)  %>% tally(JOBS_1000) %>%select(OCC_CODE, n)
+OCCDataDelta <- OCCData18 %>% inner_join (OCCData09,by=c("OCC_CODE"),name="priorN") %>% mutate(change=n.x/n.y) %>% right_join(BLS18 %>% select(OCC_CODE,OCC_TITLE) %>% distinct(), by = c("OCC_CODE")) %>% select(OCC_TITLE,change)
+kable(head(OCCDataDelta%>% arrange(change),10))
+kable(head(OCCDataDelta%>% arrange(desc(change)),10))
+```
+
+Looking at these, one can see that there are broader technological and sociological changes that aren't automation per se, such as a decline in telephone operators. 
